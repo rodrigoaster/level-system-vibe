@@ -4,16 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-This repository is newly initialized and contains no source code yet. The project is named **level-system-vibe**, suggesting a gamification/leveling system. No stack, framework, or architecture has been established.
+Next.js 16.1.6 scaffold is in place. No leveling system logic has been written yet.
+
+**Stack:** Next.js 16.1.6, React 19.2.3, TypeScript, Tailwind CSS v4
+
+**Source files:**
+- `src/app/layout.tsx` — root layout
+- `src/app/page.tsx` — placeholder "Hello world!"
+- `src/app/globals.css` — global styles
 
 ## Getting Started
 
-Before writing code, clarify with the user:
-- What language/framework to use (e.g., Node.js, Python, Go)
-- What the leveling system is for (game, app, API, etc.)
-- Whether this is a standalone library, a backend service, or a full-stack app
+Before writing leveling system code, clarify with the user:
+- What the leveling system is for (game, app, productivity tool, etc.)
+- Whether data should be persisted (DB, localStorage, etc.)
+- Any UI/UX preferences or design direction
 
 ## Notes
 
-- The `.gitignore` currently only excludes `.aider*` files
 - Aider was used previously but ran into API credit issues without producing any code
+- `npm run dev` starts the dev server on the default Next.js port
