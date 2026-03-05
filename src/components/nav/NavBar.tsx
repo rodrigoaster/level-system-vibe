@@ -1,12 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/providers/AuthProvider';
 
 const tabs = [
-  { id: 'home', label: 'Home', icon: '🏠' },
-  { id: 'tarefas', label: 'Tarefas', icon: '📋' },
-  { id: 'habitos', label: 'Hábitos', icon: '🔁' },
+  { id: 'home', label: 'Home', icon: '🏠', href: '/' },
+  { id: 'tarefas', label: 'Tarefas', icon: '📋', href: '/tarefas' },
+  { id: 'habitos', label: 'Hábitos', icon: '🔁', href: '/habitos' },
 ];
 
 export default function NavBar({ activeTab = 'home' }: { activeTab?: string }) {
@@ -31,9 +32,9 @@ export default function NavBar({ activeTab = 'home' }: { activeTab?: string }) {
 
         <nav className="flex items-center gap-1 rounded-xl bg-white/[0.04] p-1">
           {tabs.map((tab) => (
-            <button
+            <Link
               key={tab.id}
-              type="button"
+              href={tab.href}
               className={`relative rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:px-4 sm:text-base ${
                 tab.id === activeTab
                   ? 'text-white'
@@ -48,7 +49,7 @@ export default function NavBar({ activeTab = 'home' }: { activeTab?: string }) {
                 />
               )}
               <span className="relative z-10 whitespace-nowrap">{tab.icon} {tab.label}</span>
-            </button>
+            </Link>
           ))}
         </nav>
 
