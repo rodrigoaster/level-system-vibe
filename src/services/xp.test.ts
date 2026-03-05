@@ -8,7 +8,7 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 import { supabase } from '@/lib/supabase';
-import { getUserProfile, addXP } from './xp';
+import { getUserProfile, addXP, computeLevel } from './xp';
 
 const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 
@@ -125,14 +125,15 @@ describe('addXP', () => {
     expect(updateChain.update).toHaveBeenCalledWith({ xp: 100, level: 2 });
   });
 
-  it('calculates level correctly just below the threshold (no level-up)', async () => {
-    const profileAt90 = { ...demoProfile, xp: 90, level: 1 };
+  it('calculates level correctly just below the next threshold (no level-up from 2)', async () => {
+    // 90 + 9 = 99 XP. Quadratic: 50*(2-1)^2=50 <= 99, 50*(3-1)^2=200 > 99 → level 2
+    const profileAt90 = { ...demoProfile, xp: 90, level: 2 };
     const updateChain = {
       update: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({
-        data: { ...profileAt90, xp: 99, level: 1 },
+        data: { ...profileAt90, xp: 99, level: 2 },
         error: null,
       }),
     };
@@ -147,7 +148,7 @@ describe('addXP', () => {
 
     await addXP('abc-123', 9);
 
-    expect(updateChain.update).toHaveBeenCalledWith({ xp: 99, level: 1 });
+    expect(updateChain.update).toHaveBeenCalledWith({ xp: 99, level: 2 });
   });
 
   it('returns null when the user profile is not found', async () => {
@@ -186,17 +187,18 @@ describe('addXP', () => {
 // Level formula (pure logic verification)
 // ---------------------------------------------------------------------------
 
-describe('level formula: floor(xp / 100) + 1', () => {
+describe('computeLevel (quadratic: 50*(L-1)^2)', () => {
   const cases: [number, number][] = [
-    [0, 1],
-    [99, 1],
-    [100, 2],
-    [199, 2],
-    [200, 3],
-    [999, 10],
+    [0, 1],      // 50*0=0 <= 0, 50*1=50 > 0 → level 1
+    [49, 1],     // 50*1=50 > 49 → level 1
+    [50, 2],     // 50*1=50 <= 50, 50*4=200 > 50 → level 2
+    [199, 2],    // 50*1=50 <= 199, 50*4=200 > 199 → level 2
+    [200, 3],    // 50*4=200 <= 200, 50*9=450 > 200 → level 3
+    [450, 4],    // 50*9=450 <= 450, 50*16=800 > 450 → level 4
+    [800, 5],    // 50*16=800 <= 800, 50*25=1250 > 800 → level 5
   ];
 
   it.each(cases)('%i XP → level %i', (xp, expectedLevel) => {
-    expect(Math.floor(xp / 100) + 1).toBe(expectedLevel);
+    expect(computeLevel(xp)).toBe(expectedLevel);
   });
 });

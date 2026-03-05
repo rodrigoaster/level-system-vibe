@@ -7,6 +7,17 @@ export interface UserProfile {
   level: number;
 }
 
+/**
+ * Quadratic level formula: largest L where 50*(L-1)^2 <= xp
+ */
+export function computeLevel(xp: number): number {
+  let level = 1;
+  while (50 * level * level <= xp) {
+    level++;
+  }
+  return level;
+}
+
 export async function getUserProfile(id: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -27,7 +38,7 @@ export async function addXP(id: string, amount: number): Promise<UserProfile | n
   if (!profile) return null;
 
   const newXp = profile.xp + amount;
-  const newLevel = Math.floor(newXp / 100) + 1;
+  const newLevel = computeLevel(newXp);
 
   const { data, error } = await supabase
     .from('user_profiles')
