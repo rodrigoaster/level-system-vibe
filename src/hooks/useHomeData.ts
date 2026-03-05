@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getWeekStart, getMonthStart, fillWeeklyDays } from '@/lib/date-utils';
 import {
-  getUserState,
+  getOrCreateUserState,
   getRecentActivities,
   getActivitiesInRange,
   getRank,
@@ -56,7 +56,7 @@ export function useHomeData() {
 
       const [userState, recentActivities, weeklyActivities, monthlyActivities] =
         await Promise.all([
-          getUserState(uid),
+          getOrCreateUserState(uid),
           getRecentActivities(uid, 5),
           getActivitiesInRange(uid, weekStart.toISOString(), endOfToday.toISOString()),
           getActivitiesInRange(uid, monthStart.toISOString(), endOfToday.toISOString()),

@@ -93,7 +93,7 @@ export async function getUserState(userId: string): Promise<UserState | null> {
     .from('user_state')
     .select('id, user_id, xp, streak, best_streak, total_tasks')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('getUserState error:', error.message);
@@ -101,6 +101,24 @@ export async function getUserState(userId: string): Promise<UserState | null> {
   }
 
   return data;
+}
+
+export async function getOrCreateUserState(userId: string): Promise<UserState | null> {
+  const existing = await getUserState(userId);
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from('user_state')
+    .upsert({ user_id: userId }, { onConflict: 'user_id' })
+    .select('id, user_id, xp, streak, best_streak, total_tasks')
+    .single();
+
+  if (error) {
+    console.error('getOrCreateUserState error:', error.message);
+    return null;
+  }
+
+  return data ?? null;
 }
 
 export async function getRecentActivities(

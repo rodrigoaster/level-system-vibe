@@ -331,7 +331,7 @@ describe('getUserState', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: demoState, error: null }),
+      maybeSingle: vi.fn().mockResolvedValue({ data: demoState, error: null }),
     });
 
     const result = await getUserState('user-1');
@@ -344,7 +344,7 @@ describe('getUserState', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({
+      maybeSingle: vi.fn().mockResolvedValue({
         data: null,
         error: { message: 'not found' },
       }),
@@ -359,7 +359,7 @@ describe('getUserState', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     });
 
     const result = await getUserState('user-1');

@@ -11,37 +11,51 @@ export default function WeeklyChart({ data }: { data: DayXP[] }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.5 }}
-      className="flex-1 rounded-xl p-4 border border-white/5 bg-white/[0.02]"
+      transition={{ duration: 0.6, delay: 0.5 }}
+      whileHover={{ scale: 1.02 }}
+      className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-5 backdrop-blur-sm sm:p-6"
     >
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-medium text-gray-400">XP da Semana</h3>
-        <span className="text-xs text-gray-600 font-mono">+{totalXP} XP</span>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-base font-medium text-gray-200 sm:text-lg">XP da Semana</h3>
+        <span className="text-sm font-mono text-gray-300 sm:text-base">+{totalXP} XP</span>
       </div>
 
-      <div className="flex items-end gap-1.5 h-20">
+      <div className="flex items-end gap-2 h-24">
         {data.map((d, i) => {
           const pct = (d.xp / maxXP) * 100;
           return (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <span className="text-[9px] text-gray-500 font-mono">
+            <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 + i * 0.08 }}
+                className="text-xs font-mono text-gray-400 sm:text-sm"
+              >
                 {d.xp > 0 ? `+${d.xp}` : ''}
-              </span>
-              <div className="w-full flex flex-col justify-end h-14">
+              </motion.span>
+              <div className="w-full flex flex-col justify-end h-16">
                 <motion.div
                   initial={{ height: 0 }}
-                  animate={{ height: `${Math.max(pct, 2)}%` }}
-                  transition={{ duration: 0.6, delay: 0.6 + i * 0.08, ease: 'easeOut' }}
-                  className="w-full rounded-sm"
+                  animate={{ height: `${Math.max(pct, 4)}%` }}
+                  transition={{ duration: 0.7, delay: 0.6 + i * 0.08, ease: 'easeOut' }}
+                  whileHover={{ opacity: 1, scale: 1.05 }}
+                  className="w-full rounded-md"
                   style={{
                     backgroundColor: d.xp > 0 ? '#4ade80' : '#ffffff08',
                     opacity: d.xp > 0 ? 0.7 : 1,
                   }}
                 />
               </div>
-              <span className="text-[9px] text-gray-600">{DAYS[i]}</span>
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.9 + i * 0.08 }}
+                className="text-xs text-gray-400 sm:text-sm"
+              >
+                {DAYS[i]}
+              </motion.span>
             </div>
           );
         })}
