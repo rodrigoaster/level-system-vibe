@@ -2,6 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## PR Review Agent
+
+For GitHub Pull Request review tasks, use:
+- `www/pr-review-agent.md`
+
+Execution rule:
+- Treat `www/pr-review-agent.md` as the primary instruction source for PR review behavior.
+- Investigate context before commenting.
+- Use the tools defined in that agent file for PR review tasks.
+
+## Branch PR Agent
+
+For tasks that validate a branch and create a Pull Request to `master`, use:
+- `www/branch-pr-agent.md`
+
+Execution rule:
+- Treat `www/branch-pr-agent.md` as the primary instruction source for branch validation and PR creation.
+- Validate lint and unit tests before creating PR.
+- Do not create PR if validations fail.
+
 ## Project Status
 
 Next.js 16.1.6 scaffold is in place. No leveling system logic has been written yet.
@@ -282,4 +302,3 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ---
 
 *Gerado em 20/02/2026*
-
