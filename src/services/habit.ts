@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
+import { createActivity } from './activity';
 import type { Mission, MissionCompletion, MonthlyHabitStats } from '@/types/habit';
+import type { CategoryId } from '@/types/activity';
 
 export async function getMissions(userId: string): Promise<Mission[]> {
   const { data, error } = await supabase
@@ -100,3 +102,92 @@ export function computeMonthlyStats(
 
   return { dailyRates, monthlyRate };
 }
+
+export async function createMission(
+  userId: string,
+  name: string,
+  icon: string,
+  category: CategoryId,
+  dayOfWeek: number | null,
+  isFixed: boolean,
+): Promise<Mission | null> {
+  const { data, error } = await supabase
+    .from('user_missions')
+    .insert({
+      user_id: userId,
+      name,
+      icon,
+      category,
+      day_of_week: dayOfWeek,
+      is_fixed: isFixed,
+    })
+    .select('id, user_id, name, icon, category, day_of_week, is_fixed, created_at')
+    .single();
+
+  if (error) {
+    console.error('createMission error:', error.message);
+    return null;
+  }
+
+  return data;
+}
+
+export async function deleteMission(missionId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('user_missions')
+    .delete()
+    .eq('id', missionId);
+
+  if (error) {
+    console.error('deleteMission error:', error.message);
+    return false;
+  }
+
+  return true;
+}
+
+export async function completeMission(
+  mission: Mission,
+  userId: string,
+): Promise<boolean> {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Check if this mission was already completed today
+  const { data: existing } = await supabase
+    .from('user_mission_completions')
+    .select('id')
+    .eq('mission_id', mission.id)
+    .eq('user_id', userId)
+    .eq('completed_at', today)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return true; // Already completed today
+  }
+
+  const entry = await createActivity({
+    user_id: userId,
+    category: mission.category,
+    note: mission.name,
+  });
+
+  if (!entry) return false;
+
+  const { error } = await supabase
+    .from('user_mission_completions')
+    .insert({
+      mission_id: mission.id,
+      user_id: userId,
+      activity_id: entry.id,
+      completed_at: today,
+    });
+
+  if (error) {
+    console.error('completeMission error:', error.message);
+    return false;
+  }
+
+  return true;
+}
+
+export { getDayOfWeek, getMissionsForDay };
