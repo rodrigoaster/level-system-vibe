@@ -7,11 +7,22 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 import { supabase } from '@/lib/supabase';
+vi.mock('./activity', () => ({
+  createActivity: vi.fn(),
+}));
+
+import { supabase } from '@/lib/supabase';
+import { createActivity } from './activity';
+
+const mockCreateActivity = createActivity as ReturnType<typeof vi.fn>;
 import {
   getMissions,
   getCompletions,
   getDaysInMonth,
   computeMonthlyStats,
+  createMission,
+  deleteMission,
+  completeMission,
 } from './habit';
 import type { Mission, MissionCompletion } from '@/types/habit';
 
@@ -403,5 +414,203 @@ describe('computeMonthlyStats', () => {
 
     // Jan 1 (index 0, Thursday): only daily mission, 0 completed → rate 0
     expect(stats.dailyRates[0]).toBe(0);
+  });
+
+  it('excludes missions created after the day being evaluated', () => {
+    // Mission created on Jan 15 — should NOT appear for Jan 1-14
+    const midMonthMission: Mission = {
+      ...baseMission,
+      id: 'mission-mid',
+      name: 'Mid-month task',
+      created_at: '2026-01-15T10:00:00Z',
+    };
+
+    // Complete on Jan 16
+    const completions: MissionCompletion[] = [
+      { ...baseCompletion, id: 'c1', mission_id: 'mission-mid', completed_at: '2026-01-16' },
+    ];
+
+    const stats = computeMonthlyStats([midMonthMission], completions, jan2026);
+
+    // Days before creation (Jan 1-14, indices 0-13) should have rate 0 (no mission expected)
+    for (let i = 0; i < 14; i++) {
+      expect(stats.dailyRates[i]).toBe(0);
+    }
+
+    // Jan 15 (index 14): mission expected but not completed → rate 0
+    expect(stats.dailyRates[14]).toBe(0);
+
+    // Jan 16 (index 15): mission expected and completed → rate 1
+    expect(stats.dailyRates[15]).toBe(1);
+
+    // Only 17 days should count as expected (Jan 15-31)
+    // 1 completed out of 17 expected
+    expect(stats.monthlyRate).toBeCloseTo(1 / 17);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createMission
+// ---------------------------------------------------------------------------
+
+describe('createMission', () => {
+  it('creates a mission and returns it', async () => {
+    const created = { ...baseMission, name: 'Nova missão' };
+    mockFrom.mockReturnValueOnce({
+      insert: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: created, error: null }),
+    });
+
+    const result = await createMission('user-1', 'Nova missão', '🧘', 'spiritual', null, true);
+
+    expect(result).toEqual(created);
+    expect(mockFrom).toHaveBeenCalledWith('user_missions');
+  });
+
+  it('returns null on insert error', async () => {
+    mockFrom.mockReturnValueOnce({
+      insert: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: { message: 'insert failed' } }),
+    });
+
+    const result = await createMission('user-1', 'Teste', '📌', 'fitness', 0, false);
+
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteMission
+// ---------------------------------------------------------------------------
+
+describe('deleteMission', () => {
+  it('deletes a mission and returns true', async () => {
+    mockFrom.mockReturnValueOnce({
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    const result = await deleteMission('mission-1');
+
+    expect(result).toBe(true);
+    expect(mockFrom).toHaveBeenCalledWith('user_missions');
+  });
+
+  it('returns false on delete error', async () => {
+    mockFrom.mockReturnValueOnce({
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ error: { message: 'delete failed' } }),
+    });
+
+    const result = await deleteMission('mission-1');
+
+    expect(result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// completeMission
+// ---------------------------------------------------------------------------
+
+/** Build a chainable mock for the duplicate-check query (select → eq → eq → eq → limit) */
+function mockDuplicateCheck(data: unknown[]) {
+  const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+  chain.select = vi.fn().mockReturnValue(chain);
+  chain.eq = vi.fn().mockReturnValue(chain);
+  chain.limit = vi.fn().mockResolvedValue({ data, error: null });
+  mockFrom.mockReturnValueOnce(chain);
+  return chain;
+}
+
+/** Build a chainable mock for the duplicate-check query that errors */
+function mockDuplicateCheckError() {
+  const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+  chain.select = vi.fn().mockReturnValue(chain);
+  chain.eq = vi.fn().mockReturnValue(chain);
+  chain.limit = vi.fn().mockResolvedValue({ data: null, error: { message: 'query failed' } });
+  mockFrom.mockReturnValueOnce(chain);
+  return chain;
+}
+
+const demoActivity = {
+  id: 'act-new',
+  user_id: 'user-1',
+  category: 'spiritual' as const,
+  note: 'Meditar',
+  xp: 20,
+  created_at: '2026-03-10T12:00:00Z',
+};
+
+describe('completeMission', () => {
+  it('creates activity and completion record', async () => {
+    mockDuplicateCheck([]); // no existing completion
+
+    mockCreateActivity.mockResolvedValue(demoActivity);
+
+    // Insert completion record
+    mockFrom.mockReturnValueOnce({
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    const result = await completeMission(baseMission, 'user-1');
+
+    expect(result).toBe(true);
+    expect(mockCreateActivity).toHaveBeenCalledWith({
+      user_id: 'user-1',
+      category: 'spiritual',
+      note: 'Meditar',
+    });
+  });
+
+  it('returns true without creating activity when already completed today', async () => {
+    mockDuplicateCheck([{ id: 'existing-comp' }]); // already completed
+
+    const result = await completeMission(baseMission, 'user-1');
+
+    expect(result).toBe(true);
+    expect(mockCreateActivity).not.toHaveBeenCalled();
+  });
+
+  it('returns false when createActivity fails', async () => {
+    mockDuplicateCheck([]); // no existing completion
+
+    mockCreateActivity.mockResolvedValue(null);
+
+    const result = await completeMission(baseMission, 'user-1');
+
+    expect(result).toBe(false);
+  });
+
+  it('returns false when completion insert fails', async () => {
+    mockDuplicateCheck([]); // no existing completion
+
+    mockCreateActivity.mockResolvedValue(demoActivity);
+
+    // Insert completion fails
+    mockFrom.mockReturnValueOnce({
+      insert: vi.fn().mockResolvedValue({ error: { message: 'insert failed' } }),
+    });
+
+    const result = await completeMission(baseMission, 'user-1');
+
+    expect(result).toBe(false);
+  });
+
+  it('proceeds when duplicate check query fails (fail-open)', async () => {
+    mockDuplicateCheckError(); // query error, data is null
+
+    mockCreateActivity.mockResolvedValue(demoActivity);
+
+    // Insert completion
+    mockFrom.mockReturnValueOnce({
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    const result = await completeMission(baseMission, 'user-1');
+
+    expect(result).toBe(true);
+    expect(mockCreateActivity).toHaveBeenCalled();
   });
 });
