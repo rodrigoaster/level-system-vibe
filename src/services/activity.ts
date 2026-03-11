@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { addXP } from './xp';
 import { CATEGORIES, type ActivityEntry, type CreateActivityInput } from '@/types/activity';
 
 /**
@@ -101,13 +100,10 @@ export async function createActivity(input: CreateActivityInput): Promise<Activi
     return null;
   }
 
-  const updated = await addXP(input.user_id, category.xp);
-  if (!updated) {
-    console.error('createActivity addXP error: failed to update user XP');
-    return null;
+  const stateUpdated = await updateUserState(input.user_id, category.xp);
+  if (!stateUpdated) {
+    console.error('createActivity error: failed to update user state');
   }
-
-  await updateUserState(input.user_id, category.xp);
 
   return data;
 }
