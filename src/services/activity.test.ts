@@ -6,17 +6,11 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-vi.mock('./xp', () => ({
-  addXP: vi.fn(),
-}));
-
 import { supabase } from '@/lib/supabase';
-import { addXP } from './xp';
 import { createActivity, getActivities, computeStreak, updateUserState } from './activity';
 import { CATEGORIES, type CategoryId } from '@/types/activity';
 
 const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
-const mockAddXP = addXP as ReturnType<typeof vi.fn>;
 
 const demoEntry = {
   id: 'entry-1',
@@ -73,14 +67,12 @@ describe('createActivity', () => {
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data: demoEntry, error: null }),
     });
-    mockAddXP.mockResolvedValue({ id: 'user-1', username: 'demo', xp: 30, level: 1 });
     mockUpdateUserStateChains();
 
     const result = await createActivity({ user_id: 'user-1', category: 'fitness' });
 
     expect(result).toEqual(demoEntry);
     expect(mockFrom).toHaveBeenCalledWith('user_activities');
-    expect(mockAddXP).toHaveBeenCalledWith('user-1', 30);
   });
 
   it('returns null for an invalid category', async () => {
@@ -88,7 +80,6 @@ describe('createActivity', () => {
 
     expect(result).toBeNull();
     expect(mockFrom).not.toHaveBeenCalled();
-    expect(mockAddXP).not.toHaveBeenCalled();
   });
 
   it('creates an activity without a note (null)', async () => {
@@ -98,7 +89,6 @@ describe('createActivity', () => {
       single: vi.fn().mockResolvedValue({ data: demoEntry, error: null }),
     };
     mockFrom.mockReturnValueOnce(insertChain);
-    mockAddXP.mockResolvedValue({ id: 'user-1', username: 'demo', xp: 30, level: 1 });
     mockUpdateUserStateChains();
 
     await createActivity({ user_id: 'user-1', category: 'fitness' });
@@ -116,7 +106,6 @@ describe('createActivity', () => {
       single: vi.fn().mockResolvedValue({ data: entryWithNote, error: null }),
     };
     mockFrom.mockReturnValueOnce(insertChain);
-    mockAddXP.mockResolvedValue({ id: 'user-1', username: 'demo', xp: 30, level: 1 });
     mockUpdateUserStateChains();
 
     const result = await createActivity({ user_id: 'user-1', category: 'fitness', note: 'Morning run' });
@@ -137,20 +126,24 @@ describe('createActivity', () => {
     const result = await createActivity({ user_id: 'user-1', category: 'fitness' });
 
     expect(result).toBeNull();
-    expect(mockAddXP).not.toHaveBeenCalled();
   });
 
-  it('returns null when addXP fails', async () => {
+  it('still returns activity data when updateUserState fails', async () => {
     mockFrom.mockReturnValueOnce({
       insert: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data: demoEntry, error: null }),
     });
-    mockAddXP.mockResolvedValue(null);
+    // updateUserState fails at fetch step
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: { message: 'not found' } }),
+    });
 
     const result = await createActivity({ user_id: 'user-1', category: 'fitness' });
 
-    expect(result).toBeNull();
+    expect(result).toEqual(demoEntry);
   });
 
   it('uses the correct XP for each category', async () => {
@@ -175,7 +168,6 @@ describe('createActivity', () => {
         }),
       };
       mockFrom.mockReturnValueOnce(insertChain);
-      mockAddXP.mockResolvedValue({ id: 'user-1', username: 'demo', xp, level: 1 });
       mockUpdateUserStateChains();
 
       await createActivity({ user_id: 'user-1', category: categoryId as CategoryId });
@@ -183,7 +175,6 @@ describe('createActivity', () => {
       expect(insertChain.insert).toHaveBeenCalledWith(
         expect.objectContaining({ xp }),
       );
-      expect(mockAddXP).toHaveBeenCalledWith('user-1', xp);
     }
   });
 });
