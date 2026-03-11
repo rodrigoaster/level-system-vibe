@@ -61,7 +61,9 @@ function getDayOfWeek(dateStr: string): number {
 function getMissionsForDay(missions: Mission[], dateStr: string): Mission[] {
   const dow = getDayOfWeek(dateStr);
   return missions.filter(
-    (m) => m.day_of_week === null || m.day_of_week === dow,
+    (m) =>
+      (m.day_of_week === null || m.day_of_week === dow) &&
+      m.created_at.split('T')[0] <= dateStr,
   );
 }
 

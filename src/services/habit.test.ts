@@ -415,6 +415,38 @@ describe('computeMonthlyStats', () => {
     // Jan 1 (index 0, Thursday): only daily mission, 0 completed → rate 0
     expect(stats.dailyRates[0]).toBe(0);
   });
+
+  it('excludes missions created after the day being evaluated', () => {
+    // Mission created on Jan 15 — should NOT appear for Jan 1-14
+    const midMonthMission: Mission = {
+      ...baseMission,
+      id: 'mission-mid',
+      name: 'Mid-month task',
+      created_at: '2026-01-15T10:00:00Z',
+    };
+
+    // Complete on Jan 16
+    const completions: MissionCompletion[] = [
+      { ...baseCompletion, id: 'c1', mission_id: 'mission-mid', completed_at: '2026-01-16' },
+    ];
+
+    const stats = computeMonthlyStats([midMonthMission], completions, jan2026);
+
+    // Days before creation (Jan 1-14, indices 0-13) should have rate 0 (no mission expected)
+    for (let i = 0; i < 14; i++) {
+      expect(stats.dailyRates[i]).toBe(0);
+    }
+
+    // Jan 15 (index 14): mission expected but not completed → rate 0
+    expect(stats.dailyRates[14]).toBe(0);
+
+    // Jan 16 (index 15): mission expected and completed → rate 1
+    expect(stats.dailyRates[15]).toBe(1);
+
+    // Only 17 days should count as expected (Jan 15-31)
+    // 1 completed out of 17 expected
+    expect(stats.monthlyRate).toBeCloseTo(1 / 17);
+  });
 });
 
 // ---------------------------------------------------------------------------
